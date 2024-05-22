@@ -1,0 +1,48 @@
+# Use a base image with the necessary prerequisites
+FROM ubuntu:20.04
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Update package lists and install necessary packages
+RUN apt-get update -y && \
+    apt-get install -y \
+    tar \
+    rpm \
+    && apt-get clean
+
+# Copy IBM MQ installation file
+COPY IBM_MQ_9.0.0.0_LINUX_X86-64.tar.gz /opt/
+
+# Create MQM user
+RUN useradd -m mqm
+
+# Extract IBM MQ files
+RUN tar -xzvf /opt/IBM_MQ_9.0.0.0_LINUX_X86-64.tar.gz -C /opt/
+
+# Run MQ license acceptance script
+WORKDIR /opt/MQServer
+RUN ./mqlicense.sh -accept
+
+# Install IBM MQ
+# Assuming the RPM files are in /opt/MQServer
+WORKDIR /opt/MQServer
+RUN rpm -ivh MQSeries*.rpm
+
+# Configure MQ
+RUN /opt/mqm/bin/setmqinst -i -p /opt/mqm
+WORKDIR /opt/mqm/bin
+
+
+# Set ulimit values in the Dockerfile (Docker sets its own ulimit)
+RUN echo "mqm hard nofile 10240" >> /etc/security/limits.conf && \
+    echo "mqm soft nofile 10240" >> /etc/security/limits.conf && \
+    echo "mqm hard nproc 62591" >> /etc/security/limits.conf && \
+    echo "mqm soft nproc 62591" >> /etc/security/limits.conf
+
+# Expose necessary ports
+EXPOSE 1414 9443
+
+# Define the default command to start IBM MQ
+
+RUN apt install bc -y
