@@ -1,0 +1,57 @@
+# Use an appropriate base image, e.g., Ubuntu
+FROM ubuntu:20.04
+
+# Set environment variables
+ENV IM_INSTALL_DIR /opt/IBM/InstallationManager
+ENV WAS_INSTALL_DIR /opt/IBM/WebSphere/AppServer
+
+# Update the package repository and install necessary packages
+RUN apt-get update -y && \
+    apt-get install -y \
+    unzip \
+    libgtk2.0-0 \
+    libxtst6 \
+    libxft2 \
+    libxi6 \
+    libxrender1 \
+    libxrandr2 \
+    libxcb1 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create directories for installation files
+WORKDIR /opt
+RUN mkdir -p /opt/im /opt/was /opt/sdk
+
+# Copy Installation Manager and WebSphere installation files
+COPY agent.installer.linux.gtk.x86_64_1.9.0.20190715_0328.zip /opt/im/
+COPY WAS_ND_V9.0_MP_ML.zip /opt/was/
+COPY ibm-java-sdk-8.0-5.17-linux-x64-installmgr.zip /opt/sdk/
+
+# Unzip the Installation Manager and WebSphere installation files
+WORKDIR /opt/im
+RUN unzip agent.installer.linux.gtk.x86_64_1.9.0.20190715_0328.zip
+
+# Install IBM Installation Manager
+RUN ./installc -acceptLicense -installationDirectory $IM_INSTALL_DIR -sP
+
+# Unzip WebSphere and SDK files
+WORKDIR /opt/was
+RUN unzip WAS_ND_V9.0_MP_ML.zip
+
+WORKDIR /opt/sdk
+RUN unzip ibm-java-sdk-8.0-5.17-linux-x64-installmgr.zip
+
+# List available packages in the repositories (for debugging purposes)
+RUN $IM_INSTALL_DIR/eclipse/tools/imcl listAvailablePackages -repositories /opt/was/repository.config
+RUN $IM_INSTALL_DIR/eclipse/tools/imcl listAvailablePackages -repositories /opt/sdk/repository.config
+
+# Install WebSphere Application Server using Installation Manager
+WORKDIR $IM_INSTALL_DIR/eclipse/tools
+RUN ./imcl install com.ibm.websphere.ND.v90_9.0.0.20160526_1854 com.ibm.java.jdk.v8_8.0.5017.20180628_1143 \
+    -repositories /opt/was/repository.config,/opt/sdk/repository.config \
+    -installationDirectory $WAS_INSTALL_DIR \
+    -acceptLicense -sP
+
+# Expose necessary ports (e.g., 9060 for admin console, 9080 for HTTP)
+EXPOSE 9060 9080
