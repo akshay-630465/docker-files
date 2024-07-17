@@ -1,0 +1,23 @@
+FROM oraclelinux:9
+
+
+RUN useradd --create-home --shell /bin/bash mqm \
+        && echo "mqm:sarasu10" | chpasswd
+USER root
+RUN ulimit -s 10240 \
+ulimit -i 62591 \
+ulimit -n 10240
+COPY IBM_MQ_9.0.0.0_LINUX_X86-64.tar.gz /opt/
+RUN yum install -y bc
+WORKDIR /opt/
+RUN tar -xvf  IBM_MQ_9.0.0.0_LINUX_X86-64.tar.gz
+RUN echo "mqm hard nproc 4096" >> /etc/security/limits.conf \
+        && echo "mqm soft nproc 4096" >> /etc/security/limits.conf \
+        && echo "mqm hard nofile 10240" >> /etc/security/limits.conf \
+        && echo "mqm soft nofile 10240" >> /etc/security/limits.conf
+WORKDIR /opt/MQServer
+RUN ./mqlicense.sh -accept
+RUN rpm -ivh MQSeries*
+WORKDIR /opt/mqm/bin
+RUN ./setmqinst -i -p /opt/mqm
+CMD dspmqver
